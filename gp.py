@@ -5,11 +5,12 @@ from statistics import mean
 from copy import deepcopy
 import sys
 import math
+from func_timeout import func_timeout, FunctionTimedOut
 
-POP_SIZE        = 50   # population size
+#POP_SIZE        = 100   # population size
 MIN_DEPTH       = 2    # minimal initial random tree depth
 MAX_DEPTH       = 5    # maximal initial random tree depth
-GENERATIONS     = 100  # maximal number of generations to run evolution
+#GENERATIONS     = 500  # maximal number of generations to run evolution
 XO_RATE         = 0.8  # crossover rate 
 PROB_MUTATION   = 0.2  # per-node mutation probability 
 
@@ -107,42 +108,49 @@ class GPTree:
     
 # end class GPTree
                    
-def init_population(): # ramped half-and-half
+def init_population(pop_size): # ramped half-and-half
     pop = []
     for md in range(3, MAX_DEPTH + 1):
-        for i in range(math.ceil(POP_SIZE/6)):
+        for i in range(math.ceil(pop_size/6)):
             t = GPTree()
             t.random_tree(grow = True, max_depth = md) # grow
             pop.append(t) 
-        for i in range(math.ceil(POP_SIZE/6)):
+        for i in range(math.ceil(pop_size/6)):
             t = GPTree()
             t.random_tree(grow = False, max_depth = md) # full
             pop.append(t) 
-    return pop[:POP_SIZE] # return only POP_SIZE individuals
+    return pop[:pop_size] # return only pop_size individuals
 
 def fitness(individual, dataset): # absolute error over dataset; unaggregated
-    return [abs(individual.compute_tree(ds[0]) - ds[1]) for ds in dataset]
+    if individual.size() > 100: # bloat control; preventing overly large trees from propagating
+        return [sys.maxsize for _ in dataset]
+    else:
+        return [abs(individual.compute_tree(ds[0]) - ds[1]) for ds in dataset]
                 
-def gp_loop(parent_selection, dataset): # main GP loop  
+def gp_loop(pop_size, max_gens, parent_selection, dataset): # main GP loop  
     random.seed() # init internal state of random number generator
-    population= init_population() 
+    population= init_population(pop_size) 
     best_of_run = None
     best_of_run_f = sys.maxsize
     best_of_run_gen = 0
-    fitnesses = [fitness(population[i], dataset) for i in range(POP_SIZE)]
+    fitnesses = [fitness(population[i], dataset) for i in range(pop_size)]
 
     # go evolution!
-    for gen in range(GENERATIONS):        
+    for gen in range(max_gens):        
         nextgen_population=[]
-        for i in range(POP_SIZE):
-            parent1 = parent_selection(population, fitnesses)
-            parent2 = parent_selection(population, fitnesses)
+        for i in range(pop_size):
+            try: # Checking infinite loops
+                parent1 = func_timeout(5*60, parent_selection, args=(population, fitnesses)) #parent1 = parent_selection(population, fitnesses)
+                parent2 = func_timeout(5*60, parent_selection, args=(population, fitnesses)) #parent2 = parent_selection(population, fitnesses)
+            except FunctionTimedOut:
+                print("Function timed out. Skipping this generation.")
+                return sys.maxsize, None, None
             parent1.crossover(parent2)
             parent1.mutation()
             nextgen_population.append(parent1)
         population=nextgen_population
-        fitnesses = [fitness(population[i], dataset) for i in range(POP_SIZE)]
-        total_fitnesses = [sum(fitnesses[i]) for i in range(POP_SIZE)]
+        fitnesses = [fitness(population[i], dataset) for i in range(pop_size)]
+        total_fitnesses = [sum(fitnesses[i]) for i in range(pop_size)]
         if min(total_fitnesses) < best_of_run_f:
             best_of_run_f = min(total_fitnesses)
             best_of_run_gen = gen
