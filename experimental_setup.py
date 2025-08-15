@@ -13,19 +13,20 @@ TOURNAMENT_SIZE = 5    # size of tournament for tournament selection
 def lexicase_selection(population, fitnesses): # select one individual using lexicase selection
     candidates = list(zip(population, fitnesses)) # list of tuples (individual, fitness)
     cases = list(range(len(fitnesses[0]))) # all cases
+    random.shuffle(cases)
     for case in cases:
         if len(candidates) <= 1:
                 break
         errors_this_case = [pf[1][case] for pf in candidates]
         best_val_for_case = min(errors_this_case)
-        candidates = [i for i in candidates if i[1][case] <= best_val_for_case]
+        candidates = [i for i in candidates if i[1][case] == best_val_for_case]
     return deepcopy(random.choice(candidates)[0]) # return one individual randomly from the remaining candidates
 
 def tournament_selection(population, fitnesses): # select one individual using tournament selection
     candidates = list(zip(population, fitnesses)) # list of tuples (individual, fitness)
     tournament = random.sample(candidates, TOURNAMENT_SIZE) # select random individuals for tournament
-    best_fitness = min([t[1] for t in tournament]) # find best fitness in tournament
-    best_individuals = [t[0] for t in tournament if t[1] == best_fitness] # select individuals with best fitness
+    best_fitness = min([sum(t[1]) for t in tournament]) # find best fitness in tournament
+    best_individuals = [t[0] for t in tournament if sum(t[1]) == best_fitness] # select individuals with best fitness
     return deepcopy(random.choice(best_individuals)) # return one individual randomly from the best individuals
 
 def random_selection(population, fitnesses): # select one individual randomly
