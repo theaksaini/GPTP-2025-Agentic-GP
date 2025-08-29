@@ -140,11 +140,13 @@ def gp_loop(pop_size, max_gens, parent_selection, dataset): # main GP loop
         nextgen_population=[]
         for i in range(pop_size):
             try: # Checking infinite loops
-                parent1 = func_timeout(5*60, parent_selection, args=(population, fitnesses)) #parent1 = parent_selection(population, fitnesses)
-                parent2 = func_timeout(5*60, parent_selection, args=(population, fitnesses)) #parent2 = parent_selection(population, fitnesses)
+                p1 = func_timeout(5*60, parent_selection, args=(population, fitnesses)) #parent1 = parent_selection(population, fitnesses)
+                p2 = func_timeout(5*60, parent_selection, args=(population, fitnesses)) #parent2 = parent_selection(population, fitnesses)
             except FunctionTimedOut:
                 print("Function timed out. Skipping this generation.")
                 return sys.maxsize, None, None
+            parent1 = deepcopy(p1)
+            parent2 = deepcopy(p2)
             parent1.crossover(parent2)
             parent1.mutation()
             nextgen_population.append(parent1)
